@@ -1,0 +1,94 @@
+`timescale 1ns / 1ps
+
+module tb_apb_master;
+    reg clk;
+    reg reset_n;
+    reg [31:0] addr;
+    reg [31:0] wdata;
+    reg EWRITE;
+    reg EVALID;
+    reg [31:0] PRDATA;
+    reg PREADY;
+    reg PSLVERR;
+
+    wire [31:0] rdata;
+    wire EPREADY;
+    wire [31:0] PADDR;
+    wire [31:0] PWDATA;
+    wire PWRITE;
+    wire PSEL;
+    wire PENABLE;
+
+    apb_master dut (.clk(clk),.reset_n(reset_n),.addr(addr),.wdata(wdata),.EWRITE(EWRITE),.EVALID(EVALID),.rdata(rdata),.EPREADY(EPREADY),.PRDATA(PRDATA),.PREADY(PREADY),.PSLVERR(PSLVERR),.PADDR(PADDR),.PWDATA(PWDATA),.PWRITE(PWRITE),.PSEL(PSEL),.PENABLE(PENABLE));
+    always #10 clk = ~clk;
+  initial
+    begin
+        clk     = 0;
+        reset_n = 0;
+        addr    = 0;
+        wdata   = 0;
+        EWRITE  = 0;
+        EVALID  = 0;
+        PRDATA  = 0;
+        PREADY  = 0;
+        PSLVERR = 0;
+        #30;
+        reset_n = 1;
+       
+        @(posedge clk);
+        @(posedge clk);
+
+        addr   <= 32'hA000_1000;
+        wdata  <= 32'hDEAD_DEAF;
+        EWRITE <= 1; 
+        EVALID <= 1; 
+        @(posedge clk);
+        EVALID <= 0; 
+        @(posedge clk);
+        PREADY <= 1; 
+        @(posedge clk);
+        PREADY <= 0; 
+        addr   <= 32'h0;
+        wdata  <= 32'h0;
+        EWRITE <= 0; 
+        
+        $display("[TB] Write Transaction Finished.");
+        
+        #40;
+        $display("[TB] Starting Read Transaction...");
+        @(posedge clk);
+        addr   <= 32'hB000_2000;
+        EWRITE <= 0;
+        EVALID <= 1; 
+
+        @(posedge clk);
+        EVALID <= 0; 
+
+        @(posedge clk);
+        PRDATA <= 32'hCAFE_F00D; 
+        PREADY <= 1; 
+
+        @(posedge clk);
+        PREADY <= 0;
+        PRDATA <= 0; 
+        
+   
+        addr   <= 32'h0;
+        
+        $display("[TB] Read Transaction Finished. Received Data: %h", rdata);
+        
+        #40;
+        $display("[TB] Simulation Completed successfully.");
+        $finish;
+    end
+  initial
+      begin
+        $monitor("Time=%0t | PSEL=%b PENABLE=%b | PADDR=%h PWDATA=%h PWRITE=%b | PREADY=%b RDATA=%h", $time, PSEL, PENABLE, PADDR, PWDATA, PWRITE, PREADY, rdata);
+    end
+
+    initial begin
+        $dumpfile("apb_master.vcd");
+        $dumpvars(0, tb_apb_master);
+    end
+
+endmodule
